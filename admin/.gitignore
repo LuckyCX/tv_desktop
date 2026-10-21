@@ -1,0 +1,7 @@
+node_modules
+web/dist
+data/tmp/*
+data/ota/*
+!data/ota/.gitkeep
+!data/tmp/.gitkeep
+.DS_Store

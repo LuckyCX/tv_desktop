@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF101419"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="72dp"
+        android:paddingEnd="72dp"
+        android:paddingTop="38dp"
+        android:paddingBottom="38dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_hub_title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="34sp" />
+
+        <TextView
+            android:id="@+id/hubSystemSettings"
+            style="@style/SettingsRow"
+            android:layout_marginTop="28dp"
+            android:text="@string/tv_settings" />
+
+        <TextView
+            android:id="@+id/hubSwitchHome"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/home_settings" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:text="@string/home_settings_vidda_hint"
+            android:textColor="#FFACB8C1"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/hubLauncherSettings"
+            style="@style/SettingsRow"
+            android:layout_marginTop="18dp"
+            android:text="@string/launcher_settings" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/update_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/hubUpdateUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/settings_choice_bg"
+            android:hint="@string/update_url_hint"
+            android:inputType="textUri"
+            android:padding="16dp"
+            android:textColor="#FFFFFFFF"
+            android:textColorHint="#FF6B7780"
+            android:textSize="16sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/hubUpdateSave"
+                style="@style/SettingsColumnChoice"
+                android:text="@string/update_save" />
+
+            <TextView
+                android:id="@+id/hubUpdateClear"
+                style="@style/SettingsColumnChoice"
+                android:text="@string/update_clear" />
+
+            <TextView
+                android:id="@+id/hubUpdateNow"
+                style="@style/SettingsColumnChoice"
+                android:text="@string/update_now" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/hubUpdateProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FFACB8C1"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/default_open_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/hubDefaultOpenToggle"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp" />
+
+        <TextView
+            android:id="@+id/hubDefaultOpenPick"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/default_open_pick" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/backup_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/hubBackupCreate"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/backup_create" />
+
+        <TextView
+            android:id="@+id/hubBackupList"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/backup_list" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="@string/push_section"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/hubPushAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textColor="#FF4FC3F7"
+            android:textSize="22sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:text="@string/push_address_hint"
+            android:textColor="#FFACB8C1"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/hubPushHistory"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp"
+            android:text="@string/push_history" />
+    </LinearLayout>
+</ScrollView>

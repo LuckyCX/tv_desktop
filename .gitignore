@@ -1,0 +1,34 @@
+# Android / Gradle
+tools/venv/
+tools/adbkey/
+__pycache__/
+launcher/.gradle/
+launcher/build/
+launcher/app/build/
+launcher/local.properties
+backup/
+.DS_Store
+*.apk
+*.aab
+launcher/hs_err_pid*.log
+launcher/replay_pid*.log
+
+# Local Android SDK copies (never commit)
+.sdk/
+**/cmdline-tools/
+**/platform-tools/
+
+# Admin (Node)
+admin/node_modules/
+admin/web/node_modules/
+admin/server/node_modules/
+admin/web/dist/
+admin/data/ota/*.apk
+admin/data/uploads/
+admin/**/.vite/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+Thumbs.db
