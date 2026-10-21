@@ -310,27 +310,53 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (ca != cb) return ca ? -1 : 1;
             return a.label.compareToIgnoreCase(b.label);
         });
-        // Retain the optional Default-home tile until dependent tile-ordering work is merged.
-        if (showHomeSettings
-                && pm.resolveActivity(new Intent(Settings.ACTION_HOME_SETTINGS), 0) != null) {
-            fresh.add(new Entry(Entry.HOME_SETTINGS, ctx.getString(R.string.home_settings),
-                    new ComponentName(ctx, HomeSettingsActivity.class), null,
-                    ctx.getDrawable(R.drawable.ic_home_settings), null, 0));
+        // Apple TV 主屏：只保留底部 Dock。优先用户 override / favourites，再按需 fill。
+        List<Entry> dockOnly = new ArrayList<>();
+        Set<String> used = new HashSet<>();
+        for (String pkg : favourites) {
+            for (Entry e : fresh) {
+                if (e.pkg.equals(pkg) && used.add(pkg)) {
+                    dockOnly.add(e);
+                    break;
+                }
+            }
+            if (dockOnly.size() >= dockSize) break;
         }
-        // Trailing "Hidden" entry to restore user-hidden apps (Apple TV style).
-        fresh.add(new Entry(Entry.HIDDEN, ctx.getString(R.string.hidden_apps_entry),
-                new ComponentName(ctx, "hidden-apps-entry"), null,
-                ctx.getDrawable(R.drawable.ic_apps), null, 0));
-        docked = 0;
-        while (docked < fresh.size() && favourites.contains(fresh.get(docked).pkg)) docked++;
-        emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, fresh.size(), fillDock) : 0;
+        boolean hasOverride = DockStore.hasDockOverride(ctx);
+        // fill_dock：无有效 override 时补齐；或 Dock 已空时强制兜底（避免程序池整行消失、无法进二屏）
+        boolean needFill = fillDock && (!hasOverride || dockOnly.isEmpty());
+        if (needFill && dockOnly.size() < dockSize) {
+            for (Entry e : fresh) {
+                if (dockOnly.size() >= dockSize) break;
+                if (used.add(e.pkg)) dockOnly.add(e);
+            }
+        }
+        // 仍为空：再兜底塞第一个可用应用，保证至少能聚焦并按键进二屏
+        if (dockOnly.isEmpty() && !fresh.isEmpty()) {
+            dockOnly.add(fresh.get(0));
+        }
+        docked = dockOnly.size();
+        emptySlots = dockRow && !reordering ? DockSlots.empty(docked, dockSize, docked, false) : 0;
         for (int i = 0; i < emptySlots; i++) {
-            fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
+            dockOnly.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
                     null, null, null, 0));
         }
         items.clear();
-        items.addAll(fresh);
+        items.addAll(dockOnly);
         notifyDataSetChanged();
+    }
+
+    /** 当前 Dock 上实际显示的包名（用于上屏/下屏/隐藏持久化）。 */
+    private List<String> currentDockPackages() {
+        List<String> out = new ArrayList<>();
+        for (Entry e : items) {
+            if (e.kind == Entry.EMPTY) continue;
+            if (e.kind == Entry.APP || e.kind == Entry.CARD) {
+                out.add(e.pkg);
+                if (out.size() >= dockSize) break;
+            }
+        }
+        return out;
     }
 
     /** A banner_* drawable bundled with the launcher, or null for none or a name that is not one. */
@@ -465,22 +491,23 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private void showAppActions(Entry e, boolean inDock) {
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
+        final List<String> dockNow = currentDockPackages();
         if (inDock) {
             labels.add(ctx.getString(R.string.dock_unpin));
             actions.add(() -> {
-                DockStore.unpinFromDock(ctx, e.pkg, configDock);
+                DockStore.unpinFromDock(ctx, e.pkg, dockNow);
                 if (listener != null) listener.onDockChanged();
             });
         } else {
             labels.add(ctx.getString(R.string.dock_pin));
             actions.add(() -> {
-                DockStore.pinToDock(ctx, e.pkg, configDock, dockSize);
+                DockStore.pinToDock(ctx, e.pkg, dockNow, dockSize);
                 if (listener != null) listener.onDockChanged();
             });
         }
         labels.add(ctx.getString(R.string.dock_hide));
         actions.add(() -> {
-            DockStore.hide(ctx, e.pkg, configDock);
+            DockStore.hide(ctx, e.pkg, dockNow);
             if (listener != null) listener.onDockChanged();
         });
         labels.add(ctx.getString(R.string.library_app_info));

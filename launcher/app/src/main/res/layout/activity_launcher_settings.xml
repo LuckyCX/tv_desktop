@@ -61,10 +61,7 @@
             <TextView android:id="@+id/rows3" style="@style/SettingsColumnChoice" android:text="3" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/wallpaperChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="28dp" />
+        <!-- 壁纸改由设置中心「壁纸管理」统一处理，避免两处重复 -->
 
         <TextView
             android:id="@+id/animationsChoice"
@@ -98,24 +95,6 @@
             android:textColor="#FFACB8C1"
             android:textSize="14sp" />
 
-        <TextView
-            android:id="@+id/defaultHomeChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="28dp"
-            android:text="@string/home_settings" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="7dp"
-            android:text="@string/home_settings_help"
-            android:textColor="#FFACB8C1"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/tvSettingsChoice"
-            style="@style/SettingsRow"
-            android:layout_marginTop="18dp"
-            android:text="@string/tv_settings" />
+        <!-- 系统设置 / 切换桌面入口已集中在设置中心，避免重复 -->
     </LinearLayout>
 </ScrollView>

@@ -88,7 +88,7 @@
     <string name="backup_restored">已恢复备份</string>
     <string name="backup_deleted">已删除备份</string>
     <string name="push_section">局域网推送</string>
-    <string name="push_address_hint">在电脑管理后台手填此 IP:端口即可连接（无发现、无配对）。</string>
+    <string name="push_address_hint">手机与电视同一 Wi‑Fi，浏览器打开上方地址即可推送 APK 并安装（无需电脑 OTA）。</string>
     <string name="push_address_waiting">推送服务启动中…</string>
     <string name="push_history">推送记录</string>
     <string name="push_empty">暂无推送包</string>
@@ -105,4 +105,7 @@
     <string name="dock_hide">隐藏</string>
     <string name="hidden_apps_entry">已隐藏</string>
     <string name="hidden_apps_empty">没有已隐藏的应用</string>
+    <string name="hidden_unhide_to_pool">移出隐藏（到全部应用）</string>
+    <string name="hidden_unhide_to_dock">移出隐藏并上屏</string>
+    <string name="hidden_unhidden">已移出隐藏</string>
 </resources>

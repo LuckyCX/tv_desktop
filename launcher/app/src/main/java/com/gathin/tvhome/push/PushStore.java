@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /** Persists pushed APK metadata under files/pushes/. */
@@ -144,11 +145,13 @@ final class PushStore {
 
     private static String sanitizeName(String name) {
         if (name == null || name.trim().isEmpty()) return "app.apk";
-        String n = name.trim().replace('\\', '/');
+        String n = PushHttpServer.fixUtf8Mojibake(name.trim()).replace('\\', '/');
         int slash = n.lastIndexOf('/');
         if (slash >= 0) n = n.substring(slash + 1);
-        n = n.replaceAll("[^a-zA-Z0-9._\\-\\u4e00-\\u9fff]", "_");
-        if (!n.toLowerCase().endsWith(".apk")) n = n + ".apk";
+        // 只去掉非法路径字符，保留中文
+        n = n.replaceAll("[\\\\/:*?\"<>|\\x00-\\x1F]", "_").trim();
+        if (n.isEmpty()) n = "app.apk";
+        if (!n.toLowerCase(Locale.US).endsWith(".apk")) n = n + ".apk";
         return n;
     }
 

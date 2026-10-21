@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B1218"
+    android:orientation="horizontal"
+    android:padding="28dp">
+
+    <!-- 左侧：壁纸列表菜单 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="38"
+        android:orientation="vertical"
+        android:paddingEnd="18dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/wallpaper_manage"
+            android:textColor="#FFFFFFFF"
+            android:textSize="28sp" />
+
+        <TextView
+            android:id="@+id/wallpaperModeHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FF8AA0B8"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/wallpaperRotateBtn"
+            style="@style/SettingsRow"
+            android:layout_marginTop="12dp"
+            android:text="@string/wallpaper_rotate_pick" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/wallpaper_list_title"
+            android:textColor="#FFACB8C1"
+            android:textSize="15sp" />
+
+        <ListView
+            android:id="@+id/wallpaperList"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:choiceMode="singleChoice"
+            android:divider="#FF243549"
+            android:dividerHeight="1dp"
+            android:listSelector="@drawable/settings_choice_bg" />
+
+        <TextView
+            android:id="@+id/wallpaperEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/wallpaper_empty"
+            android:textColor="#FF6B7780"
+            android:textSize="15sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- 右侧：预览 -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="62"
+        android:background="#FF15263D"
+        android:padding="12dp">
+
+        <ImageView
+            android:id="@+id/wallpaperPreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/wallpaper_manage"
+            android:scaleType="fitXY" />
+
+        <TextView
+            android:id="@+id/wallpaperPreviewHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/wallpaper_preview_hint"
+            android:textColor="#FF8AA0B8"
+            android:textSize="16sp" />
+    </FrameLayout>
+</LinearLayout>

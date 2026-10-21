@@ -26,11 +26,17 @@ final class DockStore {
 
     private DockStore() {}
 
-    /** Effective dock package order: override if present, else theme/config list. */
+    /** Effective dock package order: override if present且非空, else theme/config list. */
     static List<String> effectiveDock(Context ctx, List<String> configDock) {
         List<String> override = loadLines(ctx, DOCK_FILE);
-        if (override == null) return configDock;
-        return installedOnly(ctx, override);
+        if (override == null) return configDock == null ? Collections.emptyList() : configDock;
+        List<String> installed = installedOnly(ctx, override);
+        // 空覆盖视为无效（否则程序池会整行消失）
+        if (installed.isEmpty()) {
+            clearDockOverride(ctx);
+            return configDock == null ? Collections.emptyList() : configDock;
+        }
+        return installed;
     }
 
     static Set<String> userHidden(Context ctx) {
@@ -40,16 +46,33 @@ final class DockStore {
     }
 
     static boolean hasDockOverride(Context ctx) {
-        return new File(ctx.getFilesDir(), DOCK_FILE).exists();
+        File f = new File(ctx.getFilesDir(), DOCK_FILE);
+        if (!f.exists()) return false;
+        List<String> lines = loadLines(ctx, DOCK_FILE);
+        return lines != null && !installedOnly(ctx, lines).isEmpty();
     }
 
-    static void pinToDock(Context ctx, String pkg, List<String> configDock, int maxSlots) {
+    static void clearDockOverride(Context ctx) {
+        File f = new File(ctx.getFilesDir(), DOCK_FILE);
+        if (f.exists() && !f.delete()) {
+            Log.w(TAG, "failed to delete empty dock override");
+        }
+    }
+
+    /**
+     * 上屏。currentDock 为当前 Dock 上已显示的包名顺序（含 fill_dock 填入的），
+     * 避免尚未有 override 文件时写空列表导致下屏无效。
+     */
+    static void pinToDock(Context ctx, String pkg, List<String> currentDock, int maxSlots) {
         if (pkg == null || pkg.isEmpty()) return;
-        List<String> dock = new ArrayList<>(effectiveDock(ctx, configDock));
-        dock.remove(pkg);
+        List<String> dock = new ArrayList<>();
+        if (currentDock != null) {
+            for (String p : currentDock) {
+                if (p != null && !p.isEmpty() && !p.equals(pkg)) dock.add(p);
+            }
+        }
         dock.add(0, pkg);
         while (dock.size() > Math.max(1, maxSlots)) dock.remove(dock.size() - 1);
-        // Unhide if pinning
         Set<String> hidden = new LinkedHashSet<>(userHidden(ctx));
         hidden.remove(pkg);
         saveLines(ctx, HIDDEN_FILE, new ArrayList<>(hidden));
@@ -57,22 +80,30 @@ final class DockStore {
         saveLines(ctx, DOCK_FILE, dock);
     }
 
-    static void unpinFromDock(Context ctx, String pkg, List<String> configDock) {
+    /** 下屏：从当前 Dock 列表移除并持久化 override。 */
+    static void unpinFromDock(Context ctx, String pkg, List<String> currentDock) {
         if (pkg == null || pkg.isEmpty()) return;
-        List<String> dock = new ArrayList<>(effectiveDock(ctx, configDock));
-        dock.remove(pkg);
-        saveLines(ctx, DOCK_FILE, dock);
+        List<String> dock = new ArrayList<>();
+        if (currentDock != null) {
+            for (String p : currentDock) {
+                if (p != null && !p.isEmpty() && !p.equals(pkg)) dock.add(p);
+            }
+        }
+        // 下光后若 Dock 为空，删掉 override，让 fill_dock 重新填程序池
+        if (dock.isEmpty()) clearDockOverride(ctx);
+        else saveLines(ctx, DOCK_FILE, dock);
     }
 
-    static void hide(Context ctx, String pkg, List<String> configDock) {
+    static void hide(Context ctx, String pkg, List<String> currentDock) {
         if (pkg == null || pkg.isEmpty()) return;
-        unpinFromDock(ctx, pkg, configDock);
+        unpinFromDock(ctx, pkg, currentDock);
         Set<String> hidden = new LinkedHashSet<>(userHidden(ctx));
         hidden.add(pkg);
         saveLines(ctx, HIDDEN_FILE, new ArrayList<>(hidden));
         LibraryApps.save(ctx, pkg, false);
     }
 
+    /** 仅移出隐藏，进入全部应用池，不上屏。 */
     static void unhide(Context ctx, String pkg) {
         if (pkg == null || pkg.isEmpty()) return;
         Set<String> hidden = new LinkedHashSet<>(userHidden(ctx));

@@ -109,7 +109,10 @@
     <string name="last_opened">Last opened %1$s</string>
 
     <!-- Settings hub + LAN push + Apple TV dock actions -->
-    <string name="settings_hub_title">Settings</string>
+    <string name="settings_hub_title">设置</string>
+    <string name="hub_section_system">系统</string>
+    <string name="hub_section_desktop">桌面</string>
+    <string name="hub_desktop_layout">桌面布局</string>
     <string name="home_settings_vidda_hint">On Vidda and similar TVs, enable the stock home package first, then pick it here to leave CleanYourTV as Home.</string>
     <string name="update_section">Desktop update</string>
     <string name="update_url_hint">Paste update APK URL</string>
@@ -137,8 +140,33 @@
     <string name="backup_delete">Delete</string>
     <string name="backup_restored">Backup restored</string>
     <string name="backup_deleted">Backup deleted</string>
+    <string name="wallpaper_section">壁纸管理</string>
+    <string name="wallpaper_manage">壁纸管理</string>
+    <string name="wallpaper_manage_hint">远程推送的壁纸仅在首屏展示；默认拉伸铺满。</string>
+    <string name="wallpaper_empty">暂无壁纸，请用手机打开推送地址上传图片</string>
+    <string name="wallpaper_mode_rotate">轮换壁纸（间隔 %1$d 分钟）</string>
+    <string name="wallpaper_mode_fixed">固定壁纸：%1$s</string>
+    <string name="wallpaper_mode_fixed_none">固定壁纸：未选择</string>
+    <string name="wallpaper_pick_mode">选择模式</string>
+    <string name="wallpaper_mode_rotate_label">轮换（按时长切换）</string>
+    <string name="wallpaper_mode_fixed_label">固定某一张</string>
+    <string name="wallpaper_rotate_pick">壁纸模式</string>
+    <string name="wallpaper_mode_pick_title">壁纸模式</string>
+    <string name="wallpaper_fixed_pick">选择固定壁纸</string>
+    <string name="wallpaper_fixed_current">固定当前选中壁纸</string>
+    <string name="wallpaper_fixed_need_select">请先在左侧选中一张壁纸</string>
+    <string name="wallpaper_delete">删除壁纸</string>
+    <string name="wallpaper_deleted">已删除</string>
+    <string name="wallpaper_list_title">壁纸列表</string>
+    <string name="wallpaper_set_as">设为壁纸</string>
+    <string name="wallpaper_repair">修复此图</string>
+    <string name="wallpaper_repair_ok">已修复，可再设为壁纸</string>
+    <string name="wallpaper_preview_hint">在左侧选择壁纸预览</string>
+    <string name="wallpaper_preview_loading">加载预览…</string>
+    <string name="wallpaper_preview_fail">此图无法预览，可点「修复此图」或删除后重新推送</string>
+    <string name="wallpaper_unnamed">壁纸 %1$d</string>
     <string name="push_section">LAN push</string>
-    <string name="push_address_hint">Enter this address in the PC admin (IP:port). No discovery or pairing.</string>
+    <string name="push_address_hint">同一 Wi‑Fi 下用手机浏览器打开上方地址，可推送 APK 与壁纸（壁纸仅首屏）。</string>
     <string name="push_address_waiting">Starting push service…</string>
     <string name="push_history">Push history</string>
     <string name="push_empty">No pushed APKs yet</string>
@@ -155,4 +183,7 @@
     <string name="dock_hide">Hide</string>
     <string name="hidden_apps_entry">Hidden</string>
     <string name="hidden_apps_empty">No hidden apps</string>
+    <string name="hidden_unhide_to_pool">Unhide to all apps</string>
+    <string name="hidden_unhide_to_dock">Unhide and add to dock</string>
+    <string name="hidden_unhidden">Unhidden</string>
 </resources>

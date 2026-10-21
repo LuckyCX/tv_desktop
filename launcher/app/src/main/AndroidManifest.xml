@@ -13,6 +13,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 自更新后用精确闹钟兜底拉起桌面 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
+        tools:ignore="ExactAlarm" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Needed since Android 10 to read the Wi-Fi network name for the network pill. Never requested at
          runtime: build-and-install grants it with pm grant, so lint's Android 12 "ask for COARSE with
          FINE" rule does not apply here. -->
@@ -75,6 +81,11 @@
             android:screenOrientation="landscape" />
         <activity
             android:name=".TvSettingsHubActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape" />
+        <activity
+            android:name=".WallpaperManageActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape" />
@@ -150,10 +161,26 @@
                 android:resource="@xml/input_key_service" />
         </service>
 
-        <!-- LAN APK push HTTP server (random port 10000–60000). -->
+        <!-- LAN APK push HTTP server（端口从 5010 起，占用则递增）。 -->
         <service
             android:name=".push.PushService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- 自更新完成后自动拉起桌面，避免安装后黑屏/需进系统设置手动开。 -->
+        <receiver
+            android:name=".UpdateRelaunchReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.gathin.tvhome.ACTION_RELAUNCH_AFTER_UPDATE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

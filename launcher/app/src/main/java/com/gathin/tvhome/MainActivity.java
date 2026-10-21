@@ -213,6 +213,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Dock place being changed in edit-dock mode, or -1 while the place is still being chosen. */
     private int dockEditSlot = -1;
     private AppLibraryDialog appLibrary;
+    /** Apple TV 风格：按下 Dock 后盖住主屏的全部应用二屏。 */
+    private AllAppsOverlay allAppsOverlay;
     private boolean libraryFocusPending;
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
@@ -272,6 +274,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             updateClockVisibility();
         }
     };
+    private final BroadcastReceiver wallpaperReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (wallpaperPlayer == null) return;
+            wallpaperPlayer.reloadSources(Config.load(MainActivity.this));
+            boolean overlay = allAppsOverlay != null && allAppsOverlay.isShown();
+            wallpaperPlayer.setHomeVisible(!overlay);
+            wallpaperPlayer.update();
+        }
+    };
     private final Runnable minuteTick = new Runnable() {
         @Override
         public void run() {
@@ -316,7 +328,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
-        if (festive) glass.setAccent(festival.accentColor());
+        // 只保留焦点放大，不再显示选中框
+        glass.setVisibility(View.GONE);
+        glass.setAlpha(0f);
+        glass.setAccent(festive ? festival.accentColor() : 0);
         ambient = findViewById(R.id.ambient);
         // The glow is one bitmap, so its alpha can be applied while drawing it. Otherwise every frame of
         // a fade renders it into a full-screen offscreen buffer first.
@@ -426,6 +441,29 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         fillDockLeavesSlots = !cfg.fillDock;
         adapter.setSavedOrder(Order.ranks(Order.load(Order.file(this)), dockApps));
         grid.setAdapter(adapter);
+        // 全部应用二屏（盖住主屏）；Dock 按下打开
+        allAppsOverlay = new AllAppsOverlay(this, root, new AllAppsOverlay.Host() {
+            @Override public List<String> configDock() { return dockApps; }
+            @Override public int dockSlots() { return COLUMNS; }
+            @Override public void onDockChanged() {
+                // 二屏操作 Dock/隐藏时只刷新数据，不要把焦点抢回首屏
+                reloadApps(false);
+            }
+            @Override public Map<String, String> launchActions() {
+                return Config.load(MainActivity.this).launchActions;
+            }
+            @Override public void onAllAppsVisibility(boolean visible) {
+                // 壁纸仅首屏展示：二屏盖住时隐藏
+                if (wallpaperPlayer != null) wallpaperPlayer.setHomeVisible(!visible);
+                // 挡住主屏 Dock / 播放源等抢焦点（隐藏 App 关弹窗时尤其容易逃到播放源）
+                setHomeFocusBlocked(visible);
+            }
+            @Override public void onAllAppsClosed() {
+                // 回到 Dock 原来选中的图标，不要跳到顶部按钮
+                int dockPos = Math.max(0, Math.min(lastFocused, Math.max(0, adapter.dockFilled() - 1)));
+                focusTile(dockPos);
+            }
+        });
 
         // tvOS layout: push the dock row towards the bottom of the screen, leaving room for
         // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
@@ -519,6 +557,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                // 顶部栏按下：若 Dock 暂无焦点目标，直接打开全部应用二屏
+                if (adapter == null || adapter.appCount() == 0) {
+                    if (allAppsOverlay != null) allAppsOverlay.show();
+                    return true;
+                }
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(lastFocused % COLUMNS);
                 return true;
@@ -598,12 +641,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStart() {
         super.onStart();
+        IntentFilter wallpaperFilter = new IntentFilter(WallpaperStore.ACTION_CHANGED);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(packageReceiver, packageFilter, Context.RECEIVER_NOT_EXPORTED);
             registerReceiver(timeReceiver, timeFilter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(wallpaperReceiver, wallpaperFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(packageReceiver, packageFilter);
             registerReceiver(timeReceiver, timeFilter);
+            registerReceiver(wallpaperReceiver, wallpaperFilter);
         }
         updateClockVisibility();
     }
@@ -647,10 +693,42 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK) recreate();
+        if (requestCode != LAUNCHER_SETTINGS_REQUEST) return;
+        // 壁纸变更无需整页 recreate，仅刷新壁纸；其它设置仍 recreate
+        if (resultCode == RESULT_OK) {
+            if (data != null && data.getBooleanExtra("wallpaper_only", false)) {
+                if (wallpaperPlayer != null) {
+                    wallpaperPlayer.reloadSources(Config.load(this));
+                    wallpaperPlayer.setHomeVisible(allAppsOverlay == null || !allAppsOverlay.isShown());
+                    wallpaperPlayer.update();
+                }
+            } else {
+                recreate();
+            }
+        }
     }
 
     /** Rebuilds the tiles (and the module cards), then puts focus back where it was. */
+    /** 二屏打开时禁止主屏子视图获焦，避免菜单关闭后焦点落到播放源。 */
+    private void setHomeFocusBlocked(boolean blocked) {
+        if (grid != null) {
+            grid.setDescendantFocusability(blocked
+                    ? ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    : ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        }
+        View topButtons = findViewById(R.id.topButtons);
+        if (topButtons instanceof ViewGroup) {
+            ((ViewGroup) topButtons).setDescendantFocusability(blocked
+                    ? ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    : ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        }
+        for (View button : new View[]{btnInputs, btnWifi, btnReorder, findViewById(R.id.btnSettings)}) {
+            if (button == null) continue;
+            button.setFocusable(!blocked);
+            button.setFocusableInTouchMode(false);
+        }
+    }
+
     private void reloadApps(boolean animate) {
         cancelPendingFocusScroll();
         RecyclerView.ViewHolder footer = grid.findViewHolderForAdapterPosition(adapter.appCount());
@@ -660,7 +738,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Capture the app before rebinding can move focus and overwrite its key.
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
-        final boolean restoreFocus = appLibrary == null && (animate || grid.hasFocus());
+        // 二屏打开时绝不把焦点恢复到主屏 Dock / 顶部按钮
+        final boolean overlayOpen = allAppsOverlay != null && allAppsOverlay.isShown();
+        final boolean restoreFocus = !overlayOpen && appLibrary == null && (animate || grid.hasFocus());
         if (restoreFocus) {
             glassShown = false;
             glass.setAlpha(0f);
@@ -750,6 +830,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onStop();
         unregisterReceiver(packageReceiver);
         unregisterReceiver(timeReceiver);
+        try { unregisterReceiver(wallpaperReceiver); } catch (Exception ignored) {}
         handler.removeCallbacks(clockCheck);
         rebuildOnResume = true;
     }
@@ -1058,7 +1139,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
-        // Home screen: Back goes nowhere.
+        // 二屏打开时先关闭（hide 内会回调 onAllAppsClosed 恢复 Dock 焦点）；主屏 Back 不退出。
+        if (allAppsOverlay != null && allAppsOverlay.isShown()) {
+            allAppsOverlay.hide();
+        }
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
@@ -1084,8 +1168,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     public void onTileFocused(int position, View card) {
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
-        // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
-        // would be sized to 2*pad. Run again once the tile is laid out.
+        // 冷启动时卡片尚未布局：等有尺寸后再跑一次（用于 hero / 滚动）
         if (card.getWidth() == 0) {
             card.post(() -> {
                 if (card.isFocused() && card.getWidth() > 0) onTileFocused(position, card);
@@ -1096,54 +1179,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Rect r = tileRect;
         r.set(0, 0, card.getWidth(), card.getHeight());
         root.offsetDescendantRectToMyCoords(card, r);
-        float pad = 6f * density;        // matches GlassView's glow inset
-        float scale = adapter.focusScale();
-        float w = card.getWidth() * scale + 2 * pad;
-        float h = card.getHeight() * scale + 2 * pad;
-        float x = r.exactCenterX() - w / 2f;
-        float y = r.exactCenterY() - h / 2f - (advancedEffects ? 4f * density : 0f);
-
-        ViewGroup.LayoutParams lp = glass.getLayoutParams();
-        if (lp.width != (int) w || lp.height != (int) h || card.getWidth() != glassCardW) {
-            lp.width = (int) w;
-            lp.height = (int) h;
-            glass.setLayoutParams(lp);
-            // GlassView draws its slab inset by pad, i.e. exactly over the zoomed tile: same corners as the tile.
-            glass.setRadius(AppAdapter.cornerRadius(card.getWidth(), density) * scale);
-        }
+        float pad = 6f * density;
         glassCardW = card.getWidth();
-        glassTargetX = x;
-        glassTargetY = y;
-        // Cinematic shelf: the highlight glows in the dock app's colour, plain white in the grid.
-        int accent = cinematic && !festive && position < COLUMNS ? adapter.ambientColorAt(position) : 0;
-        if (cinematic && !festive && accent != glassAccent) {
-            glassAccent = accent;
-            glass.setAccent(accent);
-        }
-        if (!glassShown) {
-            springX.cancel();
-            springY.cancel();
-            glass.setTranslationX(x);
-            glass.setTranslationY(y);
-            if (animations) glass.animate().alpha(1f).setDuration(reducedMotion ? 100 : 180).start();
-            else glass.setAlpha(1f);
-            glassShown = true;
-        } else if (!animations) {
-            springX.cancel();
-            springY.cancel();
-            glass.setTranslationX(x);
-            glass.setTranslationY(y);
-        } else {
-            springX.animateToFinalPosition(x);
-            springY.animateToFinalPosition(y - glassScrollShift);
-        }
+        glassShown = false; // 选中框已关闭，仅保留放大
         View item = (View) card.getParent();
         if (dockRow && position < COLUMNS) {
             // Dock: park it at the bottom of the screen and show the top shelf for this app.
             int decoratedTop = item.getTop() - (int) (6 * density);
             int dy = decoratedTop - grid.getPaddingTop();
-            // A 1px mismatch used to start a scroll on every dock move. Only scroll when the row is
-            // actually off; reduced motion does it in one jump so it does not fight the highlight.
             boolean scroll = Math.abs(dy) > (int) (8 * density);
             if (scroll) {
                 if (!animations || reducedMotion) grid.scrollBy(0, dy);
@@ -1151,10 +1194,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             showHero(position, scroll ? r.top - dy : r.top);
         } else {
-            // Below the dock (or in a plain grid) the glow follows the tile without the big name; letting it
-            // fade out left the grid on plain black.
             showGlowOnly(position);
-            // Scroll just enough so the whole glass (not only the tile) is visible.
             revealRect.set(0, -(int) pad * 2, item.getWidth(), item.getHeight() + (int) pad);
             grid.requestChildRectangleOnScreen(item, revealRect, reducedMotion);
         }
@@ -1473,11 +1513,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void hideGlass() {
-        if (!glassShown) return;
         glassShown = false;
-        glass.animate().cancel();
-        if (animations) glass.animate().alpha(0f).setDuration(160).start();
-        else glass.setAlpha(0f);
+        if (glass != null) {
+            glass.animate().cancel();
+            glass.setAlpha(0f);
+            glass.setVisibility(View.GONE);
+        }
     }
 
     // ---- optional system stats (config.xml show_stats) --------------------------------------------
@@ -1664,36 +1705,31 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
         int count = adapter.appCount();
-        int target;
         // Horizontal: swallow the key at a row's ends so focus never wraps to the next row or
         // escapes up into the top bar. Mid-row moves fall through to the default focus search.
         if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
-            if (forward && position == adapter.focusablePosition(count - 1) && adapter.isLibraryAt(count)) {
-                focusLibrary();
-                return true;
-            }
-            // In the dock, the last app is the row's end: the empty slots after it take no focus.
-            int rowCount = position < COLUMNS ? Math.min(count, adapter.dockFilled()) : count;
+            // Dock 只有一行：左右在 Dock 内切换，到边吞掉按键。
+            int rowCount = Math.min(count, adapter.dockFilled());
             return GridNavigation.atHorizontalEdge(position, rowCount, COLUMNS,
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
             if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
-            target = position - COLUMNS;
-        } else {
-            int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
-            if (position >= lastRowStart) {
-                if (adapter.isLibraryAt(count)) focusLibrary();
-                return true;
-            }
-            target = Math.min(position + COLUMNS, count - 1);
+            focusTile(position - COLUMNS);
+            grid.playSoundEffect(SoundEffectConstants.NAVIGATION_UP);
+            return true;
         }
-        focusTile(target);
-        // The default focus search clicks for Left/Right; Up/Down are handled here, so click for them too.
-        grid.playSoundEffect(keyCode == KeyEvent.KEYCODE_DPAD_UP
-                ? SoundEffectConstants.NAVIGATION_UP : SoundEffectConstants.NAVIGATION_DOWN);
-        return true;
+        // 方向键下：打开盖住主屏的全部应用二屏（不再在主屏展开应用网格 / 应用库）
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            if (allAppsOverlay != null) {
+                hideGlass();
+                hideHero();
+                allAppsOverlay.show();
+                grid.playSoundEffect(SoundEffectConstants.NAVIGATION_DOWN);
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override public void onLibraryFocused() {
@@ -1711,11 +1747,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onDockChanged() {
         reloadApps(false);
+        if (allAppsOverlay != null) allAppsOverlay.refreshIfShown();
     }
 
     @Override
     public void onHiddenAppsRequested() {
         adapter.showHiddenAppsDialog();
+        if (allAppsOverlay != null) allAppsOverlay.refreshIfShown();
     }
 
     /**

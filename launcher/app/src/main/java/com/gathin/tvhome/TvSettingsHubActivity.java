@@ -19,18 +19,20 @@ import com.gathin.tvhome.push.PushHttpServer;
 import com.gathin.tvhome.push.PushHistoryActivity;
 import com.gathin.tvhome.push.PushService;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/** Settings center: system / switch home / update URL / default-open / backup / push address. */
+/** Settings center: system / switch home / update URL / default-open / backup / wallpaper / push. */
 public final class TvSettingsHubActivity extends Activity {
     private EditText updateUrl;
     private TextView updateProgress;
     private TextView defaultOpenToggle;
     private TextView pushAddress;
+    private TextView wallpaperState;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -42,6 +44,7 @@ public final class TvSettingsHubActivity extends Activity {
         updateProgress = findViewById(R.id.hubUpdateProgress);
         defaultOpenToggle = findViewById(R.id.hubDefaultOpenToggle);
         pushAddress = findViewById(R.id.hubPushAddress);
+        wallpaperState = findViewById(R.id.hubWallpaperState);
         updateUrl.setText(UserPrefs.updateUrl(this));
 
         findViewById(R.id.hubSystemSettings).setOnClickListener(v ->
@@ -53,23 +56,11 @@ public final class TvSettingsHubActivity extends Activity {
         findViewById(R.id.hubLauncherSettings).setOnClickListener(v ->
                 startActivity(new Intent(this, LauncherSettingsActivity.class)));
 
-        findViewById(R.id.hubUpdateSave).setOnClickListener(v -> {
-            UserPrefs.setUpdateUrl(this, updateUrl.getText().toString());
-            Toast.makeText(this, R.string.update_saved, Toast.LENGTH_SHORT).show();
-        });
-        findViewById(R.id.hubUpdateClear).setOnClickListener(v -> {
-            updateUrl.setText("");
-            UserPrefs.setUpdateUrl(this, "");
-            Toast.makeText(this, R.string.update_cleared, Toast.LENGTH_SHORT).show();
-        });
+        // 点「更新」时自动保存 URL，不再单独保存/清空
         findViewById(R.id.hubUpdateNow).setOnClickListener(v -> startUpdate());
 
-        defaultOpenToggle.setOnClickListener(v -> {
-            boolean next = !UserPrefs.defaultOpenEnabled(this);
-            UserPrefs.setDefaultOpenEnabled(this, next);
-            refreshDefaultOpen();
-        });
-        findViewById(R.id.hubDefaultOpenPick).setOnClickListener(v -> pickDefaultOpenApp());
+        // 一行完成：点击选择默认应用（含关闭）
+        defaultOpenToggle.setOnClickListener(v -> pickDefaultOpenApp());
 
         findViewById(R.id.hubBackupCreate).setOnClickListener(v -> {
             try {
@@ -82,9 +73,12 @@ public final class TvSettingsHubActivity extends Activity {
         findViewById(R.id.hubBackupList).setOnClickListener(v -> showBackupList());
         findViewById(R.id.hubPushHistory).setOnClickListener(v ->
                 startActivity(new Intent(this, PushHistoryActivity.class)));
+        findViewById(R.id.hubWallpaperManage).setOnClickListener(v ->
+                startActivityForResult(new Intent(this, WallpaperManageActivity.class), 71));
 
         refreshDefaultOpen();
         refreshPushAddress();
+        refreshWallpaperState();
         // PushService binds asynchronously; refresh IP:port a moment later.
         pushAddress.postDelayed(this::refreshPushAddress, 800);
         findViewById(R.id.hubSystemSettings).requestFocus();
@@ -94,6 +88,32 @@ public final class TvSettingsHubActivity extends Activity {
     protected void onResume() {
         super.onResume();
         refreshPushAddress();
+        refreshWallpaperState();
+    }
+
+    private void refreshWallpaperState() {
+        if (wallpaperState == null) return;
+        int count = WallpaperStore.list(this).size();
+        String mode;
+        if (UserPrefs.wallpaperRotate(this)) {
+            mode = getString(R.string.wallpaper_mode_rotate, UserPrefs.wallpaperRotateMinutes(this));
+        } else {
+            String fixed = UserPrefs.wallpaperFixed(this);
+            mode = (fixed == null || fixed.isEmpty())
+                    ? getString(R.string.wallpaper_mode_fixed_none)
+                    : getString(R.string.wallpaper_mode_fixed, fixed);
+        }
+        wallpaperState.setText(mode + " · " + count + " 张");
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 71 && resultCode == RESULT_OK) {
+            // 壁纸页有改动：回传给桌面刷新，并更新本页状态
+            setResult(RESULT_OK, data != null ? data : new Intent().putExtra("wallpaper_only", true));
+            refreshWallpaperState();
+        }
     }
 
     private void refreshDefaultOpen() {
@@ -112,6 +132,12 @@ public final class TvSettingsHubActivity extends Activity {
         }
         defaultOpenToggle.setText(getString(R.string.default_open_state,
                 getString(on ? R.string.on : R.string.off), label));
+        TextView sub = findViewById(R.id.hubDefaultOpenPick);
+        if (sub != null) {
+            sub.setText(on
+                    ? getString(R.string.default_open_pick)
+                    : getString(R.string.off));
+        }
     }
 
     private void refreshPushAddress() {
@@ -121,7 +147,8 @@ public final class TvSettingsHubActivity extends Activity {
         if (port <= 0) {
             pushAddress.setText(getString(R.string.push_address_waiting));
         } else {
-            pushAddress.setText(ip + ":" + port);
+            // 手机浏览器直接打开此地址即可推送 APK
+            pushAddress.setText("http://" + ip + ":" + port);
         }
     }
 
@@ -187,8 +214,13 @@ public final class TvSettingsHubActivity extends Activity {
                 .setSingleChoiceItems(labels.toArray(new String[0]), checked, (d, which) -> {
                     d.dismiss();
                     String pkg = pkgs.get(which);
-                    if (pkg.isEmpty()) UserPrefs.clearDefaultOpenPkg(this);
-                    else UserPrefs.setDefaultOpenPkg(this, pkg);
+                    if (pkg.isEmpty()) {
+                        UserPrefs.clearDefaultOpenPkg(this);
+                        UserPrefs.setDefaultOpenEnabled(this, false);
+                    } else {
+                        UserPrefs.setDefaultOpenPkg(this, pkg);
+                        UserPrefs.setDefaultOpenEnabled(this, true);
+                    }
                     refreshDefaultOpen();
                 })
                 .setNegativeButton(android.R.string.cancel, null)

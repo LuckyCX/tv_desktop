@@ -124,12 +124,11 @@
     <bool name="animations">true</bool>
     <bool name="advanced_effects">false</bool>
 
-    <!-- Optional Default-home tile; keep this key for existing themes and tile-ordering work.
-         Off by default because the chooser is also available from launcher settings. -->
-    <bool name="show_home_settings_shortcut">true</bool>
+    <!-- 主屏不展示「选择默认桌面」瓦片；切换桌面请走设置中心。 -->
+    <bool name="show_home_settings_shortcut">false</bool>
 
-    <!-- Installed launchable apps, including ordinary Android apps. Also settable in config.json. -->
-    <bool name="app_library">true</bool>
+    <!-- 主屏不展示「应用库」按钮；按下 Dock 打开全屏全部应用二屏。 -->
+    <bool name="app_library">false</bool>
 
     <!-- Module cards: an app that declares a card (docs/specs/card.md) can stand in for its tile with its own
          label, caption and glow colour, once you answer Show on the prompt. false: never look for cards or ask. -->
